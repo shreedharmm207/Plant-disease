@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plant Disease Detection from Leaf Images</title>
+  <meta name="description" content="Interactive CNN-powered plant disease diagnostic studio for crop leaf image classification using MobileNetV2 transfer learning and the PlantVillage dataset.">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ========== HEADER ========== -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">🌿</div>
+      <div class="logo-text">
+        <h1>Plant Disease Detection from Leaf Images</h1>
+        <p>CNN &amp; Transfer Learning · MobileNetV2 · PlantVillage Dataset</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <nav class="nav-links">
+        <button class="nav-btn active" id="btn-studio">🧪 Studio</button>
+        <button class="nav-btn" id="btn-database">📚 Disease DB</button>
+        <button class="nav-btn" id="btn-model-specs">⚙️ CNN Model</button>
+      </nav>
+      <div class="sim-badge" id="sim-badge">⚠️ Simulation Mode</div>
+    </div>
+  </header>
+
+  <!-- ========== STUDIO VIEW ========== -->
+  <main id="studio-view">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-left">
+
+      <!-- Scanner Panel -->
+      <section class="panel" aria-labelledby="studio-heading">
+
+        <!-- Dataset Notice -->
+        <div class="dataset-notice">
+          <div class="dataset-notice-left">
+            <span class="dataset-notice-icon">🗂️</span>
+            <div>
+              <strong>PlantVillage Dataset</strong> — 54,306 real leaf images across 38 disease classes.
+              This demo uses a <em>simulated classifier</em>. Load a real TF.js model in the
+              <button class="inline-link" onclick="document.getElementById('btn-model-specs').click()">⚙️ CNN Model</button>
+              tab for live inference.
+            </div>
+          </div>
+          <a href="https://www.kaggle.com/datasets/emmarex/plantdisease" target="_blank" class="kaggle-btn">View on Kaggle ↗</a>
+        </div>
+
+        <div class="panel-header">
+          <h2 class="panel-title" id="studio-heading">🧪 Foliage Scanner</h2>
+          <span class="mode-label" id="inference-mode-label">⚡ SIMULATION</span>
+        </div>
+
+        <!-- Scan Viewport -->
+        <div class="scan-container" id="scanner-viewport">
+          <div class="scanner-laser" id="scanner-laser"></div>
+          <div class="upload-zone" id="upload-dropzone">
+            <span class="upload-icon">📸</span>
+            <p class="upload-text">Drag &amp; drop a leaf image or tap to upload</p>
+            <p class="upload-subtext">PNG · JPG · JPEG — max 5 MB</p>
+            <input type="file" id="file-input" accept="image/*">
+          </div>
+          <img src="" id="display-image" class="scanned-image" style="display:none;" alt="Scanned leaf">
+          <video id="webcam-feed" autoplay playsinline style="display:none; width:100%; height:100%; object-fit:cover;"></video>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button class="btn btn-primary" id="btn-upload-trigger">📤 Upload Image</button>
+          <button class="btn btn-secondary" id="btn-camera-toggle">📷 Use Camera</button>
+        </div>
+
+        <!-- Sample Cards -->
+        <div class="samples-wrapper">
+          <p class="samples-title">Quick Test Samples</p>
+          <div class="samples-grid">
+            <button class="sample-card" data-disease="healthy">
+              <div class="sample-thumb">🍃</div>
+              <span class="sample-name">Healthy</span>
+              <span class="sample-crop">Multi-crop</span>
+            </button>
+            <button class="sample-card" data-disease="apple_scab">
+              <div class="sample-thumb">🍎</div>
+              <span class="sample-name">Apple Scab</span>
+              <span class="sample-crop">Malus domestica</span>
+            </button>
+            <button class="sample-card" data-disease="tomato_late_blight">
+              <div class="sample-thumb">🍅</div>
+              <span class="sample-name">Late Blight</span>
+              <span class="sample-crop">S. lycopersicum</span>
+            </button>
+            <button class="sample-card" data-disease="potato_early_blight">
+              <div class="sample-thumb">🥔</div>
+              <span class="sample-name">Early Blight</span>
+              <span class="sample-crop">S. tuberosum</span>
+            </button>
+            <button class="sample-card" data-disease="corn_rust">
+              <div class="sample-thumb">🌽</div>
+              <span class="sample-name">Corn Rust</span>
+              <span class="sample-crop">Zea mays</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- CNN Feature Map Panel -->
+      <section class="panel" aria-labelledby="cnn-heading">
+        <div class="panel-header">
+          <h2 class="panel-title" id="cnn-heading">🧠 CNN Feature Activation Maps</h2>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Real-time layer breakdown</span>
+        </div>
+        <div class="cnn-grid">
+          <div class="cnn-node active">
+            <div class="cnn-canvas-wrap"><canvas id="canvas-input"></canvas></div>
+            <div class="cnn-layer-name">Input Layer</div>
+            <div class="cnn-layer-desc">RGB 180×180</div>
+          </div>
+          <div class="cnn-node">
+            <div class="cnn-canvas-wrap"><canvas id="canvas-conv"></canvas></div>
+            <div class="cnn-layer-name">Conv2D</div>
+            <div class="cnn-layer-desc">3×3 Ridge Kernel</div>
+          </div>
+          <div class="cnn-node">
+            <div class="cnn-canvas-wrap"><canvas id="canvas-relu"></canvas></div>
+            <div class="cnn-layer-name">ReLU Activation</div>
+            <div class="cnn-layer-desc">max(0, x)</div>
+          </div>
+          <div class="cnn-node">
+            <div class="cnn-canvas-wrap"><canvas id="canvas-pool"></canvas></div>
+            <div class="cnn-layer-name">MaxPooling2D</div>
+            <div class="cnn-layer-desc">4×4 Downsample</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-right">
+
+      <!-- Diagnostic Report -->
+      <section class="panel" aria-labelledby="report-heading">
+        <div class="panel-header">
+          <h2 class="panel-title" id="report-heading">📊 Diagnostic Assessment</h2>
+        </div>
+
+        <div id="diagnostic-placeholder" class="placeholder-msg">
+          <span style="font-size:2.5rem;">📡</span>
+          <p>Select a sample or upload a leaf image to generate the diagnostic report.</p>
+        </div>
+
+        <div id="diagnostic-results" class="diagnostic-report" style="display:none;">
+          <div class="result-card" id="result-severity-border">
+            <span class="result-badge" id="result-severity-badge">MEDIUM</span>
+            <div class="result-title" id="result-name"></div>
+            <div class="result-scientific" id="result-scientific"></div>
+            <p id="result-description" class="result-desc"></p>
+            <div class="confidence-bar-container">
+              <div class="confidence-label">
+                <span>Inference Confidence</span>
+                <span id="result-confidence">—</span>
+              </div>
+              <div class="confidence-track">
+                <div class="confidence-fill" id="confidence-fill-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-wrapper">
+            <div class="diagnosis-tabs">
+              <button class="tab-btn active" data-tab="tab-symptoms">Symptoms</button>
+              <button class="tab-btn" data-tab="tab-causes">Causes</button>
+              <button class="tab-btn" data-tab="tab-treatments">Treatments</button>
+              <button class="tab-btn" data-tab="tab-prevention">Prevention</button>
+            </div>
+            <div class="tab-content active" id="tab-symptoms"><ul class="bullet-list" id="list-symptoms"></ul></div>
+            <div class="tab-content" id="tab-causes"><ul class="bullet-list" id="list-causes"></ul></div>
+            <div class="tab-content" id="tab-treatments">
+              <p class="treatment-label">🌱 Organic Remedies</p>
+              <p id="txt-treatment-organic" class="treatment-text"></p>
+              <p class="treatment-label" style="margin-top:0.75rem;">🧪 Chemical Treatments</p>
+              <p id="txt-treatment-chemical" class="treatment-text"></p>
+            </div>
+            <div class="tab-content" id="tab-prevention"><ul class="bullet-list" id="list-prevention"></ul></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scan History -->
+      <section class="panel" aria-labelledby="history-heading">
+        <div class="panel-header">
+          <h2 class="panel-title" id="history-heading">📜 Scan History</h2>
+          <button id="btn-clear-history" class="clear-btn">Clear All</button>
+        </div>
+        <div class="history-list" id="history-list-container">
+          <div class="empty-msg">No scans recorded yet.</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ========== DISEASE DATABASE VIEW ========== -->
+  <main id="database-view" style="display:none; grid-template-columns:1fr;">
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">📚 Crop Disease Reference Catalog</h2>
+        <span style="font-size:0.8rem; color:var(--text-muted);">PlantVillage · 5 Entries</span>
+      </div>
+      <div id="catalog-grid" class="catalog-grid"></div>
+    </section>
+  </main>
+
+  <!-- ========== CNN MODEL SPECS VIEW ========== -->
+  <main id="model-specs-view" style="display:none; grid-template-columns:1.1fr 0.9fr; gap:2rem;">
+
+    <!-- Left: Architecture -->
+    <div style="display:flex; flex-direction:column; gap:2rem;">
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">⚙️ CNN Architecture — MobileNetV2 + Transfer Learning</h2>
+        </div>
+
+        <p class="arch-intro">
+          This model uses <strong>Transfer Learning</strong> with a <strong>MobileNetV2</strong> backbone pre-trained on ImageNet,
+          fine-tuned on <strong>54,306 leaf images</strong> from the <strong>PlantVillage dataset</strong> to classify 5 crop conditions.
+        </p>
+
+        <!-- TF.js Loader -->
+        <div class="tfjs-loader-box">
+          <div class="tfjs-loader-header">
+            <span>🤖 Load Real TensorFlow.js Model</span>
+            <span id="tfjs-status" class="tfjs-status-badge tfjs-status-idle">No Model Loaded</span>
+          </div>
+          <p class="tfjs-loader-desc">
+            Export your Keras model with <code>tensorflowjs_converter</code>, then select the <code>model.json</code> here to enable live inference in the browser.
+          </p>
+          <div class="tfjs-loader-actions">
+            <label for="tfjs-model-file" class="btn btn-secondary" style="cursor:pointer;">
+              📂 Select model.json
+              <input type="file" id="tfjs-model-file" accept=".json" style="display:none;">
+            </label>
+            <button id="tfjs-load-btn" class="btn btn-primary">⚡ Load Model</button>
+          </div>
+          <div id="tfjs-log" class="tfjs-log"></div>
+        </div>
+
+        <!-- Layer Table -->
+        <h4 class="section-subheading">Model Layer Summary</h4>
+        <div class="table-scroll">
+          <table class="arch-table">
+            <thead>
+              <tr>
+                <th>Layer (type)</th>
+                <th>Output Shape</th>
+                <th>Param #</th>
+                <th>Connected to</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row-highlight">
+                <td><code>input_1</code> (InputLayer)</td>
+                <td>(None, 180, 180, 3)</td>
+                <td>0</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>mobilenetv2_1.00_180</code></td>
+                <td>(None, 6, 6, 1280)</td>
+                <td>1,124,548</td>
+                <td>input_1</td>
+              </tr>
+              <tr>
+                <td><code>global_average_pooling2d</code></td>
+                <td>(None, 1280)</td>
+                <td>0</td>
+                <td>mobilenetv2…</td>
+              </tr>
+              <tr>
+                <td><code>dense_1</code> (Dense · ReLU)</td>
+                <td>(None, 96)</td>
+                <td>122,976</td>
+                <td>global_avg_pool</td>
+              </tr>
+              <tr>
+                <td><code>dropout</code> (Dropout 35%)</td>
+                <td>(None, 96)</td>
+                <td>0</td>
+                <td>dense_1</td>
+              </tr>
+              <tr class="row-highlight">
+                <td><code>dense_output</code> (Dense · Softmax)</td>
+                <td>(None, 5)</td>
+                <td>485</td>
+                <td>dropout</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Param Summary -->
+        <div class="param-box">
+          <div><span class="param-label">Total parameters</span><span class="param-val">1,248,009</span></div>
+          <div><span class="param-label">Trainable</span><span class="param-val">123,461 <em>(Dense classifier head)</em></span></div>
+          <div><span class="param-label">Non-trainable</span><span class="param-val">1,124,548 <em>(MobileNetV2 frozen backbone)</em></span></div>
+        </div>
+
+        <!-- Per-Class Accuracy -->
+        <h4 class="section-subheading" style="margin-top:1.5rem;">📋 Per-Class Metrics — PlantVillage Test Set</h4>
+        <div class="table-scroll">
+          <table class="arch-table">
+            <thead>
+              <tr><th>Class</th><th>Crop</th><th>Precision</th><th>Recall</th><th>F1-Score</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="cls-healthy">✓ Healthy</td><td>Multi-crop</td><td>98.1%</td><td>97.6%</td><td><strong>97.8%</strong></td></tr>
+              <tr><td class="cls-medium">⚠ Apple Scab</td><td>Malus domestica</td><td>94.3%</td><td>93.5%</td><td><strong>93.9%</strong></td></tr>
+              <tr><td class="cls-high">🔴 Late Blight</td><td>Solanum lycopersicum</td><td>96.7%</td><td>95.9%</td><td><strong>96.3%</strong></td></tr>
+              <tr><td class="cls-medium">⚠ Early Blight</td><td>Solanum tuberosum</td><td>92.4%</td><td>91.8%</td><td><strong>92.1%</strong></td></tr>
+              <tr><td class="cls-medium">⚠ Corn Rust</td><td>Zea mays</td><td>95.2%</td><td>94.4%</td><td><strong>94.8%</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </section>
+    </div>
+
+    <!-- Right: Graphs -->
+    <div style="display:flex; flex-direction:column; gap:2rem;">
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">📈 Training Performance — 25 Epochs</h2>
+        </div>
+
+        <!-- Accuracy Chart -->
+        <div class="chart-block">
+          <div class="chart-header">
+            <span>Training vs Validation Accuracy</span>
+            <span class="chart-peak" style="color:var(--primary);">Peak Val: 95.4%</span>
+          </div>
+          <div class="chart-wrap">
+            <svg viewBox="0 0 400 210" style="width:100%; height:auto;">
+              <line x1="45" y1="15" x2="385" y2="15" stroke="#f1f5f9" stroke-width="1"/>
+              <line x1="45" y1="55" x2="385" y2="55" stroke="#f1f5f9" stroke-width="1"/>
+              <line x1="45" y1="95" x2="385" y2="95" stroke="#f1f5f9" stroke-width="1"/>
+              <line x1="45" y1="135" x2="385" y2="135" stroke="#f1f5f9" stroke-width="1"/>
+              <line x1="45" y1="175" x2="385" y2="175" stroke="#cbd5e1" stroke-width="1.5"/>
+              <line x1="45" y1="15"  x2="45"  y2="175" stroke="#cbd5e1" stroke-width="1.5"/>
+              <text x="6"  y="19"  font-size="9" fill="#94a3b8" font-family="sans-serif">100%</text>
+              <text x="11" y="99"  font-size="9" fill="#94a3b8" font-family="sans-serif">75%</text>
+              <text x="11" y="179" font-size="9" fill="#94a3b8" font-family="sans-serif">50%</text>
+              <text x="45" y="198" font-size="9" fill="#94a3b8" font-family="sans-serif">0</text>
+              <text x="210" y="198" font-size="9" fill="#94a3b8" font-family="sans-serif">Epoch 12</text>
+              <text x="365" y="198" font-size="9" fill="#94a3b8" font-family="sans-serif">25</text>
+              <!-- Train -->
+              <path d="M45,175 C90,145 130,85 170,50 S280,25 385,18" fill="none" stroke="#059669" stroke-width="2.5" stroke-linejoin="round"/>
+              <!-- Val -->
+              <path d="M45,175 C90,152 130,100 170,65 S280,38 385,30" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-dasharray="5,3" stroke-linejoin="round"/>
+              <!-- Fill under train -->
+              <path d="M45,175 C90,145 130,85 170,50 S280,25 385,18 L385,175 Z" fill="rgba(5,150,105,0.06)"/>
+              <circle cx="340" cy="158" r="5" fill="#059669"/>
+              <text x="350" y="162" font-size="9" fill="#64748b" font-family="sans-serif">Train Acc</text>
+              <circle cx="340" cy="172" r="5" fill="#0284c7"/>
+              <text x="350" y="176" font-size="9" fill="#64748b" font-family="sans-serif">Val Acc</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Loss Chart -->
+        <div class="chart-block" style="margin-top:1.5rem;">
+          <div class="chart-header">
+            <span>Training vs Validation Loss</span>
+            <span class="chart-peak" style="color:var(--accent-red);">Min Val Loss: 0.125</span>
+          </div>
+          <div class="chart-wrap">
+            <svg viewBox="0 0 400 210" style="width:100%; height:auto;">
+              <line x1="45" y1="15" x2="385" y2="15" stroke="#f1f5f9" stroke-width="1"/>
+              <line x1="45" y1="55" x2="385" y2="55" stroke="#f1f5f9" stroke-width="1"/>
+              <line x1="45" y1="95" x2="385" y2="95" stroke="#f1f5f9" stroke-width="1"/>
+              <line x1="45" y1="135" x2="385" y2="135" stroke="#f1f5f9" stroke-width="1"/>
+              <line x1="45" y1="175" x2="385" y2="175" stroke="#cbd5e1" stroke-width="1.5"/>
+              <line x1="45" y1="15"  x2="45"  y2="175" stroke="#cbd5e1" stroke-width="1.5"/>
+              <text x="10"  y="19"  font-size="9" fill="#94a3b8" font-family="sans-serif">1.50</text>
+              <text x="10"  y="99"  font-size="9" fill="#94a3b8" font-family="sans-serif">0.75</text>
+              <text x="10"  y="179" font-size="9" fill="#94a3b8" font-family="sans-serif">0.00</text>
+              <text x="45" y="198" font-size="9" fill="#94a3b8" font-family="sans-serif">0</text>
+              <text x="210" y="198" font-size="9" fill="#94a3b8" font-family="sans-serif">Epoch 12</text>
+              <text x="365" y="198" font-size="9" fill="#94a3b8" font-family="sans-serif">25</text>
+              <!-- Train Loss -->
+              <path d="M45,20 C90,55 130,120 170,152 S280,168 385,172" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linejoin="round"/>
+              <!-- Val Loss -->
+              <path d="M45,20 C90,70 130,130 170,155 S280,162 385,164" fill="none" stroke="#d97706" stroke-width="2.5" stroke-dasharray="5,3" stroke-linejoin="round"/>
+              <path d="M45,20 C90,55 130,120 170,152 S280,168 385,172 L385,175 L45,175 Z" fill="rgba(220,38,38,0.05)"/>
+              <circle cx="340" cy="48" r="5" fill="#dc2626"/>
+              <text x="350" y="52" font-size="9" fill="#64748b" font-family="sans-serif">Train Loss</text>
+              <circle cx="340" cy="62" r="5" fill="#d97706"/>
+              <text x="350" y="66" font-size="9" fill="#64748b" font-family="sans-serif">Val Loss</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Overall Accuracy Summary Cards -->
+        <div class="acc-summary-grid">
+          <div class="acc-card">
+            <div class="acc-val" style="color:var(--primary);">95.4%</div>
+            <div class="acc-label">Val Accuracy</div>
+          </div>
+          <div class="acc-card">
+            <div class="acc-val" style="color:var(--accent-blue);">97.2%</div>
+            <div class="acc-label">Train Accuracy</div>
+          </div>
+          <div class="acc-card">
+            <div class="acc-val" style="color:var(--accent-amber);">0.125</div>
+            <div class="acc-label">Min Val Loss</div>
+          </div>
+          <div class="acc-card">
+            <div class="acc-val" style="color:var(--text-bright);">25</div>
+            <div class="acc-label">Epochs</div>
+          </div>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <!-- ========== FOOTER ========== -->
+  <footer>
+    <p>© 2026 Plant Disease Detection from Leaf Images &nbsp;·&nbsp; CNN &amp; Transfer Learning Lab &nbsp;·&nbsp; PlantVillage Dataset</p>
+    <p style="margin-top:0.4rem; font-size:0.75rem;">For educational demonstration only. Not a legal or agricultural advisory tool.</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="js/diseases.js"></script>
+  <script src="js/cnn-vis.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
